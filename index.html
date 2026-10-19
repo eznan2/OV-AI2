@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오버워치 X 마인크래프트 훈련장 - 솔저: 76 & 겐지</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans+KR:wght@400;600;700;900&family=Teko:wght@600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- Screen Damage / Heal Vignette -->
+  <div id="damage-vignette" class="screen-vignette"></div>
+  <div id="heal-vignette" class="screen-vignette"></div>
+
+  <!-- Tactical Visor Fullscreen HUD Overlay (Soldier) -->
+  <div id="visor-overlay" class="visor-overlay hidden">
+    <div class="visor-scanlines"></div>
+    <div class="visor-reticle-bracket top-left"></div>
+    <div class="visor-reticle-bracket top-right"></div>
+    <div class="visor-reticle-bracket bottom-left"></div>
+    <div class="visor-reticle-bracket bottom-right"></div>
+    <div class="visor-status-text">전술 조준경 활성화 // TACTICAL VISOR ACTIVE</div>
+  </div>
+
+  <!-- Deflect Overlay (Genji) -->
+  <div id="deflect-overlay" class="deflect-overlay hidden">
+    <div class="deflect-blade-ring"></div>
+    <div class="deflect-spark-center"></div>
+    <div class="deflect-status-text">튕겨내기 활성화 // DEFLECT ACTIVE</div>
+  </div>
+
+  <!-- Dragonblade Fullscreen Aura (Genji) -->
+  <div id="dragonblade-overlay" class="dragonblade-overlay hidden">
+    <div class="dragon-energy-vignette"></div>
+    <div class="dragon-status-text">龍神の剣を喰らえ // DRAGONBLADE ACTIVE</div>
+  </div>
+
+  <!-- Main HUD Layer -->
+  <div id="hud" class="hud-container">
+    <!-- Boss Health Bar (Top Center) -->
+    <div id="boss-hud-bar" class="boss-hud-container hidden">
+      <div class="boss-hud-header">
+        <span class="boss-skull-badge">🔥 BOSS 🔥</span>
+        <span class="boss-title-text" id="boss-title-text">똥침당한 즌즌쉐</span>
+        <span class="boss-hp-counter" id="boss-hp-counter">3000 / 3000</span>
+      </div>
+      <div class="boss-bar-track">
+        <div class="boss-bar-ghost" id="boss-bar-ghost"></div>
+        <div class="boss-bar-fill" id="boss-bar-fill"></div>
+        <div class="boss-bar-segments"></div>
+      </div>
+    </div>
+
+    <!-- Monster Hunter Style Boss Telegraph Alert Banner -->
+    <div id="boss-warning-hud" class="boss-warning-hud hidden">
+      <div class="b-warn-icon">⚠️</div>
+      <div class="b-warn-text-col">
+        <span class="b-warn-title" id="boss-warning-title">공격 경고 (ATTACK WARNING)</span>
+        <span class="b-warn-desc" id="boss-warning-desc">붉은색 위험 구역(RED ZONE)을 벗어나십시오!</span>
+      </div>
+    </div>
+
+    <!-- Top-Left Quest Tracker -->
+    <div id="quest-tracker" class="quest-tracker-container">
+      <div class="quest-header-row">
+        <span class="quest-icon">📜</span>
+        <span class="quest-tag">QUEST</span>
+      </div>
+      <div class="quest-title" id="quest-title">전준성 들을 잡으세요</div>
+      <div class="quest-progress-bar-wrap">
+        <div class="quest-bar-fill" id="quest-bar-fill" style="width: 0%;"></div>
+      </div>
+      <div class="quest-count-label" id="quest-counter">0 / 10</div>
+    </div>
+
+    <!-- Top-Right Killfeed Container -->
+    <div id="killfeed-container" class="killfeed-container"></div>
+
+    <!-- Center Huge Quest Announcement (보스를 잡으세요!) -->
+    <div id="center-announcement-banner" class="center-announcement hidden">
+      <div class="announce-pulse-ring"></div>
+      <h2 class="announce-title" id="announce-title">🔥 보스를 잡으세요! 🔥</h2>
+      <p class="announce-desc" id="announce-desc">하늘에서 보스 블록이 떨어졌습니다! 파괴하여 보스를 소환하십시오!</p>
+    </div>
+
+    <!-- Top Bar: Stats & Game Mode -->
+    <header class="hud-top-bar">
+      <div class="top-mode-badge" id="mode-display">마인크래프트 주민 훈련장 (MINECRAFT RANGE)</div>
+      
+      <!-- Stage Lives Counter (Stage mode: 3 lives, Practice: Unlimited) -->
+      <div class="top-lives-box" id="hud-lives-box">
+        <span class="lives-label">LIVES</span>
+        <div class="lives-icons" id="lives-icons">
+          <span class="life-heart active" id="life-1">❤️</span>
+          <span class="life-heart active" id="life-2">❤️</span>
+          <span class="life-heart active" id="life-3">❤️</span>
+        </div>
+        <span class="lives-count" id="lives-count-text">3 / 3</span>
+      </div>
+
+      <div class="top-stats-container">
+        <div class="stat-item">
+          <span class="stat-label">처치</span>
+          <span class="stat-value" id="stat-kills">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">명중률</span>
+          <span class="stat-value" id="stat-accuracy">0.0<small>%</small></span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">치명타율</span>
+          <span class="stat-value" id="stat-headshot">0.0<small>%</small></span>
+        </div>
+        <div class="stat-item" id="challenge-timer-box" style="display: none;">
+          <span class="stat-label">남은 시간</span>
+          <span class="stat-value highlight" id="stat-timer">30.0<small>s</small></span>
+        </div>
+        <div class="stat-item" id="challenge-score-box" style="display: none;">
+          <span class="stat-label">점수</span>
+          <span class="stat-value gold" id="stat-score">0</span>
+        </div>
+      </div>
+      <div class="top-right-help">
+        <button id="btn-open-hero-select" class="top-btn btn-hero-select" title="영웅 변경 (H)">👥 영웅 변경 [H]</button>
+        <button id="btn-open-settings" class="top-btn" title="설정 (ESC / P)">⚙ 설정</button>
+        <button id="btn-to-main-menu" class="top-btn btn-menu-exit" title="메인 메뉴로 나가기">🏠 메인 메뉴</button>
+      </div>
+    </header>
+
+    <!-- Center Reticle / Crosshair Layer -->
+    <div class="crosshair-wrapper">
+      <div id="crosshair" class="crosshair crosshair-circle-cross">
+        <div class="crosshair-dot"></div>
+        <div class="crosshair-line top"></div>
+        <div class="crosshair-line bottom"></div>
+        <div class="crosshair-line left"></div>
+        <div class="crosshair-line right"></div>
+        <div class="crosshair-circle"></div>
+      </div>
+      <!-- Hitmarkers -->
+      <div id="hitmarker" class="hitmarker normal">
+        <div class="hm-line tl"></div>
+        <div class="hm-line tr"></div>
+        <div class="hm-line bl"></div>
+        <div class="hm-line br"></div>
+      </div>
+      <!-- Elimination Banner (Subtle / Boss fallback) -->
+      <div id="elim-banner" class="elim-banner hidden">
+        <div class="elim-skull">💀</div>
+        <div class="elim-text">
+          <span class="elim-title">처치</span>
+          <span class="elim-target" id="elim-target-name">전준성</span>
+          <span class="elim-points">100</span>
+        </div>
+      </div>
+      <!-- Tactical Visor Lock-On Indicator (dynamic 2D screen tracking) -->
+      <div id="visor-lock-box" class="visor-lock-box hidden">
+        <div class="lock-bracket tl"></div>
+        <div class="lock-bracket tr"></div>
+        <div class="lock-bracket bl"></div>
+        <div class="lock-bracket br"></div>
+        <span class="lock-label">LOCK ON</span>
+      </div>
+    </div>
+
+    <!-- Bottom Left: Health & Hero Portrait & Play Time Timer -->
+    <div class="hud-bottom-left">
+      <!-- Play Time Timer (Start from game start) -->
+      <div id="playtime-box" class="playtime-box">
+        <span class="playtime-icon">⏱️</span>
+        <span class="playtime-label">PLAY TIME</span>
+        <span class="playtime-val" id="playtime-val">00:00.0</span>
+      </div>
+      <div class="hero-portrait-card">
+        <div class="portrait-avatar" id="portrait-avatar">
+          <!-- Dynamic soldier vs genji avatar visual -->
+          <div class="soldier-visor-glow" id="portrait-glow"></div>
+          <span class="portrait-number" id="portrait-number">76</span>
+        </div>
+        <div class="portrait-hero-name" id="portrait-hero-name">솔저: 76</div>
+      </div>
+      <div class="health-block">
+        <div class="health-numeric">
+          <span id="hp-current">200</span>
+          <span class="hp-divider">/</span>
+          <span id="hp-max">200</span>
+        </div>
+        <div class="health-bars-container">
+          <div class="health-bar-fill" id="hp-bar-fill" style="width: 100%;"></div>
+          <div class="health-segments-overlay"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Center: Ultimate Meter (Tactical Visor / Dragonblade) -->
+    <div class="hud-bottom-center">
+      <div class="ult-wrapper" id="ult-wrapper">
+        <svg class="ult-progress-ring" viewBox="0 0 120 120">
+          <circle class="ult-bg-circle" cx="60" cy="60" r="52"></circle>
+          <circle class="ult-bar-circle" id="ult-circle-bar" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="ult-inner">
+          <div class="ult-icon-wrap" id="ult-icon-wrap">
+            <svg class="ult-visor-icon" viewBox="0 0 40 40">
+              <path d="M 6 16 L 34 16 L 32 26 L 8 26 Z" fill="none" stroke="currentColor" stroke-width="2.5" />
+              <line x1="6" y1="21" x2="34" y2="21" stroke="currentColor" stroke-width="3" />
+              <line x1="20" y1="12" x2="20" y2="16" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </div>
+          <div class="ult-percent-label" id="ult-percent">0<small>%</small></div>
+        </div>
+        <div class="ult-key-badge" id="ult-key-badge">Q</div>
+        <div class="ult-ready-banner hidden" id="ult-ready-banner">준비 완료!</div>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Abilities & Weapon Ammo -->
+    <div class="hud-bottom-right">
+      <!-- Abilities Row -->
+      <div class="abilities-row">
+        <!-- Ability 1: Sprint (Soldier) / Swift Strike (Genji) -->
+        <div class="ability-slot" id="ability-slot-1">
+          <div class="ability-icon-box">
+            <span class="ability-glyph" id="glyph-ab-1">⚡</span>
+            <div class="cooldown-overlay" id="cd-overlay-1"></div>
+            <div class="cooldown-timer" id="cd-timer-1"></div>
+            <div class="ability-active-glow" id="sprint-active-glow"></div>
+          </div>
+          <div class="ability-key">SHIFT</div>
+          <div class="ability-name" id="name-ab-1">질주</div>
+        </div>
+
+        <!-- Ability 2: Biotic Field (Soldier) / Deflect (Genji) -->
+        <div class="ability-slot" id="ability-slot-2">
+          <div class="ability-icon-box">
+            <span class="ability-glyph" id="glyph-ab-2">➕</span>
+            <div class="cooldown-overlay" id="cd-overlay-2"></div>
+            <div class="cooldown-timer" id="cd-timer-2"></div>
+          </div>
+          <div class="ability-key">E</div>
+          <div class="ability-name" id="name-ab-2">생체장</div>
+        </div>
+
+        <!-- Ability 3: Helix (Soldier) / Fan Shurikens (Genji) -->
+        <div class="ability-slot" id="ability-slot-3">
+          <div class="ability-icon-box">
+            <span class="ability-glyph" id="glyph-ab-3">🚀</span>
+            <div class="cooldown-overlay" id="cd-overlay-3"></div>
+            <div class="cooldown-timer" id="cd-timer-3"></div>
+          </div>
+          <div class="ability-key">우클릭</div>
+          <div class="ability-name" id="name-ab-3">나선 로켓</div>
+        </div>
+      </div>
+
+      <!-- Weapon & Ammo Display -->
+      <div class="weapon-ammo-block">
+        <div class="weapon-label" id="weapon-label">헤비 펄스 소총</div>
+        <div class="ammo-counter">
+          <span class="ammo-current" id="ammo-current">30</span>
+          <span class="ammo-divider">/</span>
+          <span class="ammo-max" id="ammo-max">30</span>
+        </div>
+        <div class="ammo-bar-track">
+          <div class="ammo-bar-fill" id="ammo-bar-fill" style="width: 100%;"></div>
+        </div>
+        <div class="reload-prompt hidden" id="reload-prompt">[R] 재장전</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Select Modal (영웅 선택) -->
+  <div id="hero-modal" class="overlay-modal hidden">
+    <div class="modal-card hero-select-card">
+      <div class="modal-header">
+        <div class="overwatch-logo-strip">
+          <span class="logo-text">HERO SELECT</span>
+          <span class="mode-text">영웅 선택</span>
+        </div>
+        <h2 class="hero-title">영웅을 선택하십시오</h2>
+        <p class="hero-subtitle">훈련할 영웅을 클릭하여 즉시 변경할 수 있습니다.</p>
+      </div>
+
+      <div class="hero-roster-grid">
+        <!-- Soldier Card -->
+        <div class="roster-card active" id="card-hero-soldier" data-hero="soldier">
+          <div class="roster-avatar avatar-soldier">
+            <span class="roster-num">76</span>
+          </div>
+          <h3 class="roster-name">솔저: 76</h3>
+          <p class="roster-role">공격 // 지속 화력 & 기동</p>
+          <ul class="roster-skills">
+            <li>• <strong>좌클릭</strong>: 헤비 펄스 소총 (연사 히트스캔)</li>
+            <li>• <strong>우클릭</strong>: 나선 로켓 (직격 120 + 로켓 점프)</li>
+            <li>• <strong>Shift</strong>: 질주 (스프린트 가속)</li>
+            <li>• <strong>E</strong>: 생체장 (반경 내 초당 40 HP 치유)</li>
+            <li>• <strong>Q</strong>: 전술 조준경 (100% 자동 유도 사격)</li>
+          </ul>
+          <button class="btn-select-hero">솔저: 76 선택</button>
+        </div>
+
+        <!-- Genji Card -->
+        <div class="roster-card" id="card-hero-genji" data-hero="genji">
+          <div class="roster-avatar avatar-genji">
+            <span class="roster-ninja">🥷</span>
+          </div>
+          <h3 class="roster-name">겐지 (Genji)</h3>
+          <p class="roster-role">공격 // 암살 & 사이버 민첩성</p>
+          <ul class="roster-skills">
+            <li>• <strong>좌클릭</strong>: 수리검 3연사 (원거리 직선 투사체)</li>
+            <li>• <strong>우클릭</strong>: 수리검 부채꼴 (근거리 폭딜)</li>
+            <li>• <strong>Shift</strong>: 질풍참 (15m 대시 50 피해, <strong>처치 시 쿨타임 초기화!</strong>)</li>
+            <li>• <strong>E</strong>: 튕겨내기 (적 탄환 반사 & 피해 차단)</li>
+            <li>• <strong>패시브</strong>: 2단 점프 & 벽 타기</li>
+            <li>• <strong>Q</strong>: 용검 (용의 검을 맛보아라! 근접 110 피해)</li>
+          </ul>
+          <button class="btn-select-hero">겐지 선택</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-close-hero-modal" class="btn-secondary-ow">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Menu Screen Overlay -->
+  <div id="start-screen" class="overlay-modal">
+    <div class="modal-card main-menu-card">
+      <div class="modal-header">
+        <div class="overwatch-logo-strip">
+          <span class="logo-text">OVERWATCH X MINECRAFT</span>
+          <span class="mode-text">PROJECT JUNSEONG</span>
+        </div>
+        <h1 class="hero-title" id="start-title">오버워치 주민 사격장</h1>
+        <p class="hero-subtitle">솔저: 76과 겐지로 스테이지를 돌파하거나 자유 훈련장에서 실력을 연마하세요!</p>
+      </div>
+
+      <!-- Main Navigation Selection: [게임 플레이] vs [훈련장 가기] -->
+      <div class="main-menu-selection-grid">
+        <!-- 1. 게임 플레이 (챕터 모드 1장 ~ 5장) -->
+        <div class="menu-choice-card choice-play" id="card-choice-play">
+          <div class="choice-icon-wrap">
+            <span class="choice-badge">CAMPAIGN</span>
+            <span class="choice-big-icon">⚔️</span>
+          </div>
+          <div class="choice-content">
+            <h2 class="choice-title">게임 플레이</h2>
+            <p class="choice-desc">제 1 장부터 제 5 장까지 순차 도전!<br><strong>남은 목숨에 따라 별 최대 3개 획득</strong></p>
+            <div class="choice-rule-tag">⚠️ 3번 사망 시 탈락!</div>
+          </div>
+          <button id="btn-main-play" class="btn-primary-ow btn-choice-action">🚀 챕터 선택 (1장 ~ 5장)</button>
+        </div>
+
+        <!-- 2. 훈련장 가기 (자유 훈련장) -->
+        <div class="menu-choice-card choice-practice" id="card-choice-practice">
+          <div class="choice-icon-wrap">
+            <span class="choice-badge">FREE RANGE</span>
+            <span class="choice-big-icon">🎯</span>
+          </div>
+          <div class="choice-content">
+            <h2 class="choice-title">훈련장 가기</h2>
+            <p class="choice-desc">제한 없이 무제한으로 사격 연습!<br><strong>10킬 달성 시 하늘에서 거대 보스 소환</strong></p>
+            <div class="choice-rule-tag green">✨ 무제한 부활 & 자유 연습</div>
+          </div>
+          <button id="btn-main-practice" class="btn-primary-ow btn-choice-action green">🏹 훈련장 입장</button>
+        </div>
+      </div>
+
+      <!-- Quick Sub Actions: Hero Select, 30s Flick, Controls -->
+      <div class="main-menu-sub-actions">
+        <button id="btn-switch-hero-start" class="btn-secondary-ow">👥 영웅 변경 (솔저: 76 / 겐지)</button>
+        <button id="btn-switch-flick-mode" class="btn-secondary-ow">⚡ 30초 플릭샷 반응 챌린지</button>
+      </div>
+
+      <div class="quick-controls-grid mini-controls" id="controls-grid">
+        <div class="control-card"><span class="ctrl-key">WASD</span><span class="ctrl-desc">이동</span></div>
+        <div class="control-card"><span class="ctrl-key">Space</span><span class="ctrl-desc">점프/2단/벽타기</span></div>
+        <div class="control-card"><span class="ctrl-key">Shift</span><span class="ctrl-desc">질주/질풍참</span></div>
+        <div class="control-card"><span class="ctrl-key">좌클릭</span><span class="ctrl-desc">사격/용검</span></div>
+        <div class="control-card"><span class="ctrl-key">우클릭</span><span class="ctrl-desc">나선로켓/수리검</span></div>
+        <div class="control-card"><span class="ctrl-key">E</span><span class="ctrl-desc">생체장/튕겨내기</span></div>
+        <div class="control-card"><span class="ctrl-key">Q</span><span class="ctrl-desc">전술조준경/용검</span></div>
+        <div class="control-card"><span class="ctrl-key">H</span><span class="ctrl-desc">영웅 변경</span></div>
+      </div>
+      <p class="tip-footer">💡 게임 중 언제든지 <strong>ESC</strong>나 상단 메뉴 버튼으로 메인 화면으로 돌아갈 수 있습니다.</p>
+    </div>
+  </div>
+
+  <!-- Stage Select Modal (제 1 장 ~ 제 5 장) -->
+  <div id="stage-select-modal" class="overlay-modal hidden">
+    <div class="modal-card stage-select-card">
+      <div class="modal-header">
+        <button id="btn-close-stage-x" class="modal-corner-close" title="닫기 (ESC)">✕</button>
+        <div class="overwatch-logo-strip">
+          <span class="logo-text">CAMPAIGN MODE</span>
+          <span class="mode-text">CHAPTER SELECT</span>
+        </div>
+        <h2 class="hero-title">도전할 챕터를 선택하십시오</h2>
+        <p class="hero-subtitle">남은 목숨에 따라 최대 3개의 별(★)을 획득합니다. <strong>(0회 사망: 3성 / 1회 사망: 2성 / 2회 사망: 1성 / 3회: 탈락)</strong></p>
+      </div>
+
+      <div class="stages-grid" id="stages-grid">
+        <!-- 제 1 장 -->
+        <div class="stage-card boss-stage-card" data-stage="1" id="stage-card-1">
+          <div class="stage-header">
+            <span class="stage-num-badge boss-badge">👑 제 1 장 BOSS</span>
+            <div class="stage-stars" id="stars-stage-1">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <h3 class="stage-title boss-title">준성이 10마리 & 조인준 보스전</h3>
+          <p class="stage-goal">🔥 목표: <strong>움직이는 준성이 10마리 처치 시 조인준 보스 강림! (즉사기 & 용암 지형)</strong></p>
+          <div class="stage-star-criteria">
+            <div class="criteria-row"><span>★★★ 3성:</span> <strong>0회 사망 (목숨 3개)</strong></div>
+            <div class="criteria-row"><span>★★☆ 2성:</span> <strong>1회 사망 (목숨 2개)</strong></div>
+            <div class="criteria-row"><span>★☆☆ 1성:</span> <strong>2회 사망 (목숨 1개)</strong></div>
+          </div>
+          <div class="stage-best-time" id="best-time-1">최고 기록: --:--.-</div>
+          <button class="btn-stage-start btn-boss-start" data-stage="1">⚔️ 결전 개시</button>
+        </div>
+
+        <!-- 제 2 장: 빙원 지형 & 람머스 노윤상 보스전 -->
+        <div class="stage-card ice-stage-card boss-stage-card" data-stage="2" id="stage-card-2">
+          <div class="stage-header">
+            <span class="stage-num-badge ice-badge">❄️ 제 2 장 (얼음 지형)</span>
+            <div class="stage-stars" id="stars-stage-2">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <h3 class="stage-title ice-title">가시전차: sang1 (노윤상)</h3>
+          <p class="stage-goal">❄️ 목표: <strong>미끄러운 얼음 바닥 주의! 람머스 sang1 (반사 가시갑옷 & 돌격 구르기) ➔ HP 50% 이하 시 거대 노윤상 각성 (머리카락 가시 난사)!</strong></p>
+          <div class="stage-star-criteria">
+            <div class="criteria-row"><span>★★★ 3성:</span> <strong>0회 사망 (목숨 3개)</strong></div>
+            <div class="criteria-row"><span>★★☆ 2성:</span> <strong>1회 사망 (목숨 2개)</strong></div>
+            <div class="criteria-row"><span>★☆☆ 1성:</span> <strong>2회 사망 (목숨 1개)</strong></div>
+          </div>
+          <div class="stage-best-time" id="best-time-2">최고 기록: --:--.-</div>
+          <button class="btn-stage-start btn-boss-start" data-stage="2" style="background: linear-gradient(135deg, #0099cc 0%, #00e5ff 100%); border-color: #33ffff;">❄️ 빙원 결전 개시</button>
+        </div>
+
+        <!-- 제 3 장 -->
+        <div class="stage-card" data-stage="3" id="stage-card-3">
+          <div class="stage-header">
+            <span class="stage-num-badge">제 3 장</span>
+            <div class="stage-stars" id="stars-stage-3">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <h3 class="stage-title">탄막 시험</h3>
+          <p class="stage-goal">🎯 목표: 에메랄드 공격 봇 <strong>10마리</strong> 처치</p>
+          <div class="stage-star-criteria">
+            <div class="criteria-row"><span>★★★ 3성:</span> <strong>0회 사망 (목숨 3개)</strong></div>
+            <div class="criteria-row"><span>★★☆ 2성:</span> <strong>1회 사망 (목숨 2개)</strong></div>
+            <div class="criteria-row"><span>★☆☆ 1성:</span> <strong>2회 사망 (목숨 1개)</strong></div>
+          </div>
+          <div class="stage-best-time" id="best-time-3">최고 기록: --:--.-</div>
+          <button class="btn-stage-start" data-stage="3">작전 시작</button>
+        </div>
+
+        <!-- 제 4 장 -->
+        <div class="stage-card" data-stage="4" id="stage-card-4">
+          <div class="stage-header">
+            <span class="stage-num-badge">제 4 장</span>
+            <div class="stage-stars" id="stars-stage-4">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <h3 class="stage-title">정예 방어선</h3>
+          <p class="stage-goal">🎯 목표: 강화 체력 정예군 <strong>12마리</strong> 처치</p>
+          <div class="stage-star-criteria">
+            <div class="criteria-row"><span>★★★ 3성:</span> <strong>0회 사망 (목숨 3개)</strong></div>
+            <div class="criteria-row"><span>★★☆ 2성:</span> <strong>1회 사망 (목숨 2개)</strong></div>
+            <div class="criteria-row"><span>★☆☆ 1성:</span> <strong>2회 사망 (목숨 1개)</strong></div>
+          </div>
+          <div class="stage-best-time" id="best-time-4">최고 기록: --:--.-</div>
+          <button class="btn-stage-start" data-stage="4">작전 시작</button>
+        </div>
+
+        <!-- 제 5 장 -->
+        <div class="stage-card boss-stage-card" data-stage="5" id="stage-card-5">
+          <div class="stage-header">
+            <span class="stage-num-badge boss-badge">👑 제 5 장 RAID</span>
+            <div class="stage-stars" id="stars-stage-5">
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+              <span class="star-icon">★</span>
+            </div>
+          </div>
+          <h3 class="stage-title boss-title">대수신 JO 수렵전</h3>
+          <p class="stage-goal">🔥 목표: <strong>붉은 위험 장판(5대 패턴) 회피 & 대수신 JO 토벌</strong></p>
+          <div class="stage-star-criteria">
+            <div class="criteria-row"><span>★★★ 3성:</span> <strong>0회 사망 (목숨 3개)</strong></div>
+            <div class="criteria-row"><span>★★☆ 2성:</span> <strong>1회 사망 (목숨 2개)</strong></div>
+            <div class="criteria-row"><span>★☆☆ 1성:</span> <strong>2회 사망 (목숨 1개)</strong></div>
+          </div>
+          <div class="stage-best-time" id="best-time-5">최고 기록: --:--.-</div>
+          <button class="btn-stage-start btn-boss-start" data-stage="5">⚔️ 수렵 개시</button>
+        </div>
+      </div>
+
+      <div class="modal-actions stage-modal-actions">
+        <button id="btn-close-stage-modal" class="btn-secondary-ow">◀ 메인 메뉴로</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Game Pause & Settings Modal -->
+  <div id="settings-modal" class="overlay-modal hidden">
+    <div class="modal-card settings-card">
+      <div class="modal-header">
+        <h2 class="settings-title">⚙ 훈련장 설정</h2>
+        <button id="btn-close-settings" class="close-x">✕</button>
+      </div>
+
+      <div class="settings-body">
+        <div class="settings-group">
+          <h3>🎮 컨트롤 & 마우스</h3>
+          <div class="setting-row">
+            <label for="slider-sens">마우스 감도</label>
+            <div class="slider-control">
+              <input type="range" id="slider-sens" min="0.5" max="10.0" step="0.1" value="2.5">
+              <span id="sens-val" class="slider-val">2.5</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label for="chk-invert-y">Y축 반전</label>
+            <input type="checkbox" id="chk-invert-y">
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>🎯 조준선 (Crosshair)</h3>
+          <div class="setting-row">
+            <label for="select-crosshair">조준선 형태</label>
+            <select id="select-crosshair">
+              <option value="crosshair-circle-cross" selected>기본 (원 + 십자선)</option>
+              <option value="crosshair-cross">십자선</option>
+              <option value="crosshair-dot">점 (Dot)</option>
+              <option value="crosshair-circle">원형 (Circle)</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label for="select-ch-color">조준선 색상</label>
+            <select id="select-ch-color">
+              <option value="#00ffcc" selected>민트 그린 (#00ffcc)</option>
+              <option value="#38e469">겐지 그린 (#38e469)</option>
+              <option value="#00e5ff">오버워치 시안 (#00e5ff)</option>
+              <option value="#ffffff">화이트 (#ffffff)</option>
+              <option value="#ffff00">옐로우 (#ffff00)</option>
+              <option value="#ff0055">네온 핑크 (#ff0055)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>🤖 봇 & 훈련 모드</h3>
+          <div class="setting-row">
+            <label for="select-training-mode">훈련 모드 선택</label>
+            <select id="select-training-mode">
+              <option value="free" selected>자유 훈련 (Free Range)</option>
+              <option value="tracking">에임 트래킹 훈련 (고속 무빙)</option>
+              <option value="flick">30초 플릭샷 반응 챌린지</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label for="chk-bot-immortal">봇 무적 모드 (DPS 테스트용)</label>
+            <input type="checkbox" id="chk-bot-immortal">
+          </div>
+          <div class="setting-row">
+            <label for="chk-infinite-ult">궁극기 즉시 충전 (Q 무한)</label>
+            <input type="checkbox" id="chk-infinite-ult">
+          </div>
+          <div class="setting-row" style="margin-top: 8px;">
+            <button id="btn-summon-boss-instant" class="btn-primary-ow" style="width: 100%; padding: 8px 12px; font-size: 14px; background: #ff1744; border-color: #ff5252; box-shadow: 0 0 12px rgba(255, 23, 68, 0.7);">👑 몬스터 헌터 대수신 JO 즉시 소환</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>🔊 오디오</h3>
+          <div class="setting-row">
+            <label for="slider-volume">효과음 볼륨</label>
+            <div class="slider-control">
+              <input type="range" id="slider-volume" min="0" max="100" value="80">
+              <span id="volume-val" class="slider-val">80%</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label for="chk-voice">영웅 궁극기 보이스 대사</label>
+            <input type="checkbox" id="chk-voice" checked>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-resume-game" class="btn-primary-ow">게임으로 복귀</button>
+        <button id="btn-reset-stats" class="btn-secondary-ow">통계 초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Stage Clear Modal with Star Rating & Statistics -->
+  <div id="game-clear-modal" class="game-clear-modal hidden">
+    <div class="clear-bg-overlay">
+      <img id="clear-img" src="cl.jpg" alt="Game Clear" class="clear-fullscreen-image">
+      <div class="clear-gradient-shade"></div>
+    </div>
+
+    <div class="clear-modal-content">
+      <div class="clear-header">
+        <div class="clear-trophy-badge" id="clear-stage-badge">🏆 제 1 장 // MISSION ACCOMPLISHED 🏆</div>
+        <h1 class="clear-title-text" id="clear-title-text">STAGE CLEAR!</h1>
+        <p class="clear-subtitle-text" id="clear-subtitle-text">작전을 성공적으로 완수했습니다!</p>
+        
+        <!-- Big Star Rating Presentation -->
+        <div class="clear-star-wrapper">
+          <div class="clear-stars-row" id="clear-stars-row">
+            <span class="clear-star active" id="cstar-1">★</span>
+            <span class="clear-star active" id="cstar-2">★</span>
+            <span class="clear-star active" id="cstar-3">★</span>
+          </div>
+          <div class="clear-star-status-text" id="clear-star-status">★★★ 별 3개 (목숨 3개 모두 무사!)</div>
+        </div>
+      </div>
+
+      <!-- Detailed Statistics Grid -->
+      <div class="clear-stats-grid">
+        <div class="stat-card">
+          <span class="sc-label">⏱️ 클리어 시간</span>
+          <span class="sc-val highlight" id="cs-time">00:00.0</span>
+        </div>
+        <div class="stat-card">
+          <span class="sc-label">💀 사망 횟수</span>
+          <span class="sc-val danger" id="cs-deaths">0 / 3</span>
+        </div>
+        <div class="stat-card">
+          <span class="sc-label">🎯 사격 명중률</span>
+          <span class="sc-val" id="cs-accuracy">0.0%</span>
+        </div>
+        <div class="stat-card">
+          <span class="sc-label">💥 치명타율 (헤드샷)</span>
+          <span class="sc-val gold" id="cs-headshot">0.0%</span>
+        </div>
+        <div class="stat-card">
+          <span class="sc-label">⚔️ 처치 수</span>
+          <span class="sc-val" id="cs-kills">5</span>
+        </div>
+        <div class="stat-card">
+          <span class="sc-label">💥 총 피해량</span>
+          <span class="sc-val" id="cs-damage">0</span>
+        </div>
+      </div>
+
+      <div class="clear-footer">
+        <button id="btn-next-stage" class="btn-primary-ow btn-clear-next">🚀 다음 챕터</button>
+        <button id="btn-restart-game" class="btn-secondary-ow btn-clear-retry">🔄 다시 플레이</button>
+        <button id="btn-clear-to-stages" class="btn-secondary-ow">📋 챕터 목록</button>
+        <button id="btn-clear-to-main" class="btn-secondary-ow">🏠 메인 메뉴</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mission Failed (탈락) Modal -->
+  <div id="mission-failed-modal" class="game-clear-modal mission-failed-modal hidden">
+    <div class="failed-bg-overlay"></div>
+    <div class="clear-modal-content failed-modal-content">
+      <div class="failed-header">
+        <div class="failed-skull-badge">💀 MISSION FAILED // 작전 실패 💀</div>
+        <h1 class="failed-title-text">탈락 (ELIMINATED)</h1>
+        <p class="failed-subtitle-text">사망 횟수 <strong>3회</strong>를 초과하여 임무에서 탈락했습니다!</p>
+      </div>
+
+      <div class="failed-stats-preview">
+        <div class="f-stat-item">
+          <span class="f-label">현재 챕터</span>
+          <span class="f-val" id="failed-stage-name">제 1 장</span>
+        </div>
+        <div class="f-stat-item">
+          <span class="f-label">버틴 시간</span>
+          <span class="f-val highlight" id="failed-time">00:00.0</span>
+        </div>
+        <div class="f-stat-item">
+          <span class="f-label">처치한 적</span>
+          <span class="f-val gold" id="failed-kills">0</span>
+        </div>
+      </div>
+
+      <div class="clear-footer failed-footer">
+        <button id="btn-failed-retry" class="btn-primary-ow btn-failed-retry">🔄 즉시 재도전</button>
+        <button id="btn-failed-to-stages" class="btn-secondary-ow">📋 챕터 선택</button>
+        <button id="btn-failed-to-main" class="btn-secondary-ow">🏠 메인 메뉴</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio, Engine and Game Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/faces_data.js"></script>
+  <script src="js/jo_data.js"></script>
+  <script src="js/sang_data.js"></script>
+  <script src="js/bot.js"></script>
+  <script src="js/boss.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+
+</html>
